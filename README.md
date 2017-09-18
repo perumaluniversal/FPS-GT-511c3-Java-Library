@@ -9,7 +9,7 @@ This repository contains example code and binaries to work with it.
 
 Repository Contents
 -------------------
-* **/FPS_GT511C3** - Java Library to interface with the sensor using USB TO TTL Module.
+Java Library to interface with the sensor using USB TO TTL Module.
 
 License Information
 -------------------
