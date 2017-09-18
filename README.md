@@ -1,4 +1,3 @@
-# FPS-GT-511c3-Java-Library
 FPS GT-511c3 JAVA Library
 =========================
 [![FingerPrint Scanner](https://dlnmh9ip6v2uc.cloudfront.net/images/products/1/1/7/9/2/11792-01_medium.jpg)  
