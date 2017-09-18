@@ -9,7 +9,7 @@ This repository contains example code and binaries to work with it.
 
 Repository Contents
 -------------------
-Java Library to interface with the sensor using USB TO TTL Module.
+Java Library to interface with the sensor using USB TO TTL Module. It works for any System / IOT (Raspberry,Pine64,.etc) that supports java.
 
 License Information
 -------------------
