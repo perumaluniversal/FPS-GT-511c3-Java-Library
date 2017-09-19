@@ -1,4 +1,5 @@
 package FP;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -115,6 +116,11 @@ public class FPS {
 	final byte COMMAND_START_CODE_2 = (byte)0xAA;	// Static byte to mark the beginning of a command packet	-	never changes
 	final byte COMMAND_DEVICE_ID_1 = 0x01;	// Device ID Byte 1 (lesser byte)							-	theoretically never changes
 	final byte COMMAND_DEVICE_ID_2 = 0x00;	// Device ID Byte 2 (greater byte)							-	theoretically never changes
+	int Error;
+	Boolean ACK;
+	byte[] ParameterBytes = new byte[4];
+	byte[] ResponseBytes = new byte[2];
+	byte[] RawBytes = new byte[12];
 	
 	public static class ErrorCodes
 	{
@@ -166,13 +172,14 @@ public class FPS {
 		packetbytes[11] = 0x01; /*GetHighByte(checksum);*/
 		//packetbytes[12] = "\n".getBytes()[0];
 
-		for(int i=0;i<12;i++)
+		// input byte debug code
+		/*for(int i=0;i<12;i++)
 		{
 			byte[] test = new byte[1];
 			test[0] = packetbytes[i];
 			System.out.print("0x" + bytesToHex(test) + ",");
 		}
-		System.out.println("");
+		System.out.println("");*/
 		
 		
 		return packetbytes;
@@ -230,6 +237,79 @@ public class FPS {
 	  //return tmp;
 	}
 	
+	
+	byte[] Response_Packet(byte[] buffer)
+	{
+		if (buffer[8] == 0x30) ACK = true; else ACK = false;
+
+		short checksum = CalculateChecksum(buffer, 10);
+		byte checksum_low = GetLowByte(checksum);
+		byte checksum_high = GetHighByte(checksum);
+
+		Error = ParseFromBytes(buffer[5], buffer[4]);
+
+		ParameterBytes[0] = buffer[4];
+		ParameterBytes[1] = buffer[5];
+		ParameterBytes[2] = buffer[6];
+		ParameterBytes[3] = buffer[7];
+		ResponseBytes[0]=buffer[8];
+		ResponseBytes[1]=buffer[9];
+		for (int i=0; i < 12; i++)
+		{
+			RawBytes[i]=buffer[i];
+		}
+		return RawBytes;
+	}
+	
+	int ParseFromBytes(byte high, byte low)
+	{
+		int e = ErrorCodes.INVALID;
+		if (high == 0x00)
+		{
+			
+		}
+		// grw 01/03/15 - replaced if clause with else clause for any non-zero high byte
+		// if (high == 0x01)
+		// {
+		else {
+			switch(low)
+			{
+				case 0x00: e = ErrorCodes.NO_ERROR; break;
+				case 0x01: e = ErrorCodes.NACK_TIMEOUT; break;
+				case 0x02: e = ErrorCodes.NACK_INVALID_BAUDRATE; break;
+				case 0x03: e = ErrorCodes.NACK_INVALID_POS; break;
+				case 0x04: e = ErrorCodes.NACK_IS_NOT_USED; break;
+				case 0x05: e = ErrorCodes.NACK_IS_ALREADY_USED; break;
+				case 0x06: e = ErrorCodes.NACK_COMM_ERR; break;
+				case 0x07: e = ErrorCodes.NACK_VERIFY_FAILED; break;
+				case 0x08: e = ErrorCodes.NACK_IDENTIFY_FAILED; break;
+				case 0x09: e = ErrorCodes.NACK_DB_IS_FULL; break;
+				case 0x0A: e = ErrorCodes.NACK_DB_IS_EMPTY; break;
+				case 0x0B: e = ErrorCodes.NACK_TURN_ERR; break;
+				case 0x0C: e = ErrorCodes.NACK_BAD_FINGER; break;
+				case 0x0D: e = ErrorCodes.NACK_ENROLL_FAILED; break;
+				case 0x0E: e = ErrorCodes.NACK_IS_NOT_SUPPORTED; break;
+				case 0x0F: e = ErrorCodes.NACK_DEV_ERR; break;
+				case 0x10: e = ErrorCodes.NACK_CAPTURE_CANCELED; break;
+				case 0x11: e = ErrorCodes.NACK_INVALID_PARAM; break;
+				case 0x12: e = ErrorCodes.NACK_FINGER_IS_NOT_PRESSED; break;
+			}
+		}
+		return e;
+	}
+	
+	
+	
+	short CalculateChecksum(byte[] buffer, int length)
+	{
+		short checksum = 0;
+		for (int i=0; i<length; i++)
+		{
+			checksum +=buffer[i];
+		}
+		return checksum;
+	}
+	
 	/*static byte[] Open()
 	{
 		//if (UseSerialDebug) Serial.println("FPS - Open");
@@ -253,43 +333,129 @@ public class FPS {
 		return GetPacketBytes(Commands.Close);
 	}*/
 	
-	public byte[] LEDON()
+	void purgeresponse()
 	{
-		Parameter = new byte[4];
-		Parameter[0] = 0x01;
-		Parameter[1] = 0x00;
-		Parameter[2] = 0x00;
-		Parameter[3] = 0x00;
-		return GetPacketBytes(Commands.CmosLed);
-		
-		//return true;
-		
+		byte[] temp;
+		try
+		{
+			int c = this.in.available();
+			temp = new byte[c];
+			this.in.read(temp);
+			this.in.reset();	
+		}
+		catch(Exception exp)
+		{
+			
+		}
+		finally
+		{
+			temp = null;
+		}
 	}
 	
-	public byte[] LEDOFF()
+	/*byte[] getresponse() throws InterruptedException
 	{
-		Parameter = new byte[4];
-		Parameter[0] = 0x00;
-		Parameter[1] = 0x00;
-		Parameter[2] = 0x00;
-		Parameter[3] = 0x00;
-		return GetPacketBytes(Commands.CmosLed);
+		Thread.sleep(500);
+		byte[] res;
+		try
+		{
+			int c = this.in.available();
+			res = new byte[c];
+			this.in.read(res);
+			return res;
+		}
+		catch(Exception exp)
+		{
+			return new byte[0];
+		}
+		finally
+		{
+			res = null;
+		}
+	}*/
+	
+	byte[] GetResponse() throws Exception
+	{
+		byte firstbyte = 0;
+		Boolean done = false;
+		//_serial.listen();
+		Thread.sleep(200);
+		while (done == false)
+		{
+			firstbyte = (byte)this.in.read();
+			if (firstbyte == COMMAND_START_CODE_1)
+			{
+				done = true;
+			}
+		}
+		byte[] resp = new byte[12];
+		resp[0] = firstbyte;
+		for (int i=1; i < 12; i++)
+		{
+			while (this.in.available() == 0) Thread.sleep(10);
+			resp[i]= (byte) this.in.read();
+		}
+		return Response_Packet(resp);
+	}
+	
+	int IntFromParameter()
+	{
+		int retval = 0;
+		retval = (retval << 8) + ParameterBytes[3];
+		retval = (retval << 8) + ParameterBytes[2];
+		retval = (retval << 8) + ParameterBytes[1];
+		retval = (retval << 8) + ParameterBytes[0];
+		return retval;
+	}
+	
+	
+	public void SendRequest(short cmd) throws Exception
+	{
+		purgeresponse();
+		this.out.write(GetPacketBytes(cmd));
+		this.out.write("\n".getBytes());
+	}
+	
+	public Boolean LEDON() throws Exception
+	{
+		Parameter = new byte[]{0x01,0x00,0x00,0x00};
+		SendRequest(Commands.CmosLed);
+		byte[] res = GetResponse();
+		return ACK;
+	}
+	
+	public Boolean LEDOFF() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.CmosLed);
+		byte[] res = GetResponse();
+		return ACK;
+	}
+	
+	public int GetEnrollCount() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.GetEnrollCount);
+		byte[] res = GetResponse();
+		return IntFromParameter();
+	}
+	
+	public Boolean IsPressFinger() throws Exception
+	{
+		LEDON();
 		
-	}
-	
-	public byte[] GetEnrollCount()
-	{
-		Parameter = new byte[4];
-		Parameter[0] = 0x00;
-		Parameter[1] = 0x00;
-		Parameter[2] = 0x00;
-		Parameter[3] = 0x00;
-		return GetPacketBytes(Commands.GetEnrollCount);
-	}
-	
-	public byte[] IsPressFinger()
-	{
-		return null;
+		SendRequest(Commands.IsPressFinger);
+		byte[] res = GetResponse();
+		Boolean retval = false;
+		int pval = ParameterBytes[0];
+		pval += ParameterBytes[1];
+		pval += ParameterBytes[2];
+		pval += ParameterBytes[3];
+		if (pval == 0) retval = true;
+		
+		LEDOFF();
+		
+		return retval;
 	}
 	
 }
