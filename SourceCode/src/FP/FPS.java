@@ -1,5 +1,4 @@
 package FP;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -32,11 +31,11 @@ public class FPS {
                 in = serialPort.getInputStream();
                 out = serialPort.getOutputStream();
                 
-                return true;
+                //FPS Open
+                Open();
                 
-                //(new Thread(new SerialReader(in))).start();
-                //(new Thread(new SerialWriter(out))).start();
-
+                
+                return true;
             }
             else
             {
@@ -146,7 +145,7 @@ public class FPS {
 				INVALID						= 0XFFFF;	// Used when parsing fails
 	}
 	
-	byte[] GetPacketBytes(short cmd)
+	byte[] GetPacketBytes(int cmd)
 	{
 		byte[] packetbytes= new byte[12];
 
@@ -155,7 +154,7 @@ public class FPS {
 		command[0] = GetLowByte(cmd);
 		command[1] = GetHighByte(cmd);
 
-		short checksum = _CalculateChecksum();
+		int checksum = _CalculateChecksum();
 		
 		packetbytes[0] = COMMAND_START_CODE_1;
 		packetbytes[1] = COMMAND_START_CODE_2;
@@ -169,8 +168,7 @@ public class FPS {
 		packetbytes[9] = command[1];
 		
 		packetbytes[10] = GetLowByte(checksum);
-		packetbytes[11] = 0x01; /*GetHighByte(checksum);*/
-		//packetbytes[12] = "\n".getBytes()[0];
+		packetbytes[11] = GetHighByte(checksum);
 
 		// input byte debug code
 		/*for(int i=0;i<12;i++)
@@ -185,9 +183,9 @@ public class FPS {
 		return packetbytes;
 	} 
 	
-	short _CalculateChecksum()
+	int _CalculateChecksum()
 	{
-		short w = 0;
+		int w = 0;
 		w += COMMAND_START_CODE_1;
 		w += COMMAND_START_CODE_2;
 		w += COMMAND_DEVICE_ID_1;
@@ -203,15 +201,15 @@ public class FPS {
 	}
 	
 	
-	byte GetHighByte(short w)
+	byte GetHighByte(int w)
 	{
-		return (byte) ((byte)(w>>8)&0x00FF);
+		return (byte) ((byte)(w>>16)&0x00FF);
 	}
 
 	// Returns the low byte from a word
-	byte GetLowByte(short w)
+	byte GetLowByte(int w)
 	{
-		return (byte) (w&0x00FF);
+		return (byte) ((byte)w&0x00FF);
 	}
 	
 	String SendToSerial(byte data[], int length)
@@ -231,16 +229,17 @@ public class FPS {
 	String serialPrintHex(byte data)
 	{
 	  char[] tmp = new char[16];
-	  return new String(tmp).format("%.2X", data);
-	  //sprintf(tmp, "%.2X",);
-	  //Serial.print(tmp);
-	  //return tmp;
+	  new String(tmp);
+	return String.format("%.2X", data);
 	}
 	
 	
 	byte[] Response_Packet(byte[] buffer)
 	{
-		if (buffer[8] == 0x30) ACK = true; else ACK = false;
+		if (buffer[8] == 0x30)
+			ACK = true; 
+		else 
+			ACK = false;
 
 		short checksum = CalculateChecksum(buffer, 10);
 		byte checksum_low = GetLowByte(checksum);
@@ -300,9 +299,9 @@ public class FPS {
 	
 	
 	
-	short CalculateChecksum(byte[] buffer, int length)
+	byte CalculateChecksum(byte[] buffer, int length)
 	{
-		short checksum = 0;
+		byte checksum = 0;
 		for (int i=0; i<length; i++)
 		{
 			checksum +=buffer[i];
@@ -310,28 +309,19 @@ public class FPS {
 		return checksum;
 	}
 	
-	/*static byte[] Open()
+	void Open() throws Exception
 	{
-		//if (UseSerialDebug) Serial.println("FPS - Open");
-		//Command_Packet* cp = new Command_Packet();
-		Parameter = new byte[4];	
-		Parameter[0] = 0x00;
-		Parameter[1] = 0x00;
-		Parameter[2] = 0x00;
-		Parameter[3] = 0x00;
-		return GetPacketBytes(Commands.Open);
-		//packetbytes;
-	}*/
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Open);
+		byte[] res = GetResponse(0);
+	}
 	
-	/*byte[] Close()
+	void Close() throws Exception
 	{
-		Parameter = new byte[4];
-		Parameter[0] = 0x00;
-		Parameter[1] = 0x00;
-		Parameter[2] = 0x00;
-		Parameter[3] = 0x00;
-		return GetPacketBytes(Commands.Close);
-	}*/
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Close);
+		byte[] res = GetResponse(0);
+	}
 	
 	void purgeresponse()
 	{
@@ -353,33 +343,16 @@ public class FPS {
 		}
 	}
 	
-	/*byte[] getresponse() throws InterruptedException
-	{
-		Thread.sleep(500);
-		byte[] res;
-		try
-		{
-			int c = this.in.available();
-			res = new byte[c];
-			this.in.read(res);
-			return res;
-		}
-		catch(Exception exp)
-		{
-			return new byte[0];
-		}
-		finally
-		{
-			res = null;
-		}
-	}*/
-	
-	byte[] GetResponse() throws Exception
+	byte[] GetResponse(int timeout) throws Exception
 	{
 		byte firstbyte = 0;
 		Boolean done = false;
-		//_serial.listen();
-		Thread.sleep(200);
+		
+		if(timeout==0)
+			Thread.sleep(200);
+		else
+			Thread.sleep(timeout);
+		
 		while (done == false)
 		{
 			firstbyte = (byte)this.in.read();
@@ -392,7 +365,7 @@ public class FPS {
 		resp[0] = firstbyte;
 		for (int i=1; i < 12; i++)
 		{
-			while (this.in.available() == 0) Thread.sleep(10);
+			while (this.in.available() == 0) Thread.sleep(5);
 			resp[i]= (byte) this.in.read();
 		}
 		return Response_Packet(resp);
@@ -408,6 +381,14 @@ public class FPS {
 		return retval;
 	}
 	
+	void ParameterFromInt(int i)
+	{
+		Parameter[0] = (byte) (i & 0x000000ff);
+		Parameter[1] = (byte) ((i & 0x0000ff00) >> 8);
+		Parameter[2] = (byte) ((i & 0x00ff0000) >> 16);
+		Parameter[3] = (byte) ((i & 0xff000000) >> 24);
+	}
+	
 	
 	public void SendRequest(short cmd) throws Exception
 	{
@@ -420,7 +401,7 @@ public class FPS {
 	{
 		Parameter = new byte[]{0x01,0x00,0x00,0x00};
 		SendRequest(Commands.CmosLed);
-		byte[] res = GetResponse();
+		byte[] res = GetResponse(0);
 		return ACK;
 	}
 	
@@ -428,7 +409,7 @@ public class FPS {
 	{
 		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.CmosLed);
-		byte[] res = GetResponse();
+		byte[] res = GetResponse(0);
 		return ACK;
 	}
 	
@@ -436,16 +417,16 @@ public class FPS {
 	{
 		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.GetEnrollCount);
-		byte[] res = GetResponse();
+		byte[] res = GetResponse(0);
 		return IntFromParameter();
 	}
 	
 	public Boolean IsPressFinger() throws Exception
 	{
 		LEDON();
-		
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.IsPressFinger);
-		byte[] res = GetResponse();
+		byte[] res = GetResponse(50);
 		Boolean retval = false;
 		int pval = ParameterBytes[0];
 		pval += ParameterBytes[1];
@@ -453,9 +434,115 @@ public class FPS {
 		pval += ParameterBytes[3];
 		if (pval == 0) retval = true;
 		
-		LEDOFF();
 		
 		return retval;
 	}
+	
+	Boolean CheckEnrolled(int id) throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.CheckEnrolled);
+		ParameterFromInt(id);
+		byte[] res = GetResponse(0);
+		Boolean retval = false;
+		retval = ACK;
+		return retval;
+	}
+	
+	
+	public int EnrollStart(int id) throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		ParameterFromInt(id);
+		SendRequest(Commands.EnrollStart);
+		byte[] res = GetResponse(0);
+		int retval = 0;
+		if (ACK == false)
+		{
+			if (Error == ErrorCodes.NACK_DB_IS_FULL) retval = 1;
+			if (Error == ErrorCodes.NACK_INVALID_POS) retval = 2;
+			if (Error == ErrorCodes.NACK_IS_ALREADY_USED) retval = 3;
+		}
+		return retval;
+	}
+	
+	Boolean CaptureFinger(Boolean highquality) throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		if (highquality)
+			ParameterFromInt(1);
+		else
+			ParameterFromInt(0);
+
+		SendRequest(Commands.CaptureFinger);
+		byte[] res = GetResponse(0);
+		Boolean retval = ACK;
+		return retval;
+
+	}
+	
+	
+	public int Enroll1() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Enroll1);
+		byte[] res = GetResponse(0);
+		
+		int retval = IntFromParameter();
+		if (retval < 200) retval = 3; else retval = 0;
+		if (ACK == false)
+		{
+			if (Error == ErrorCodes.NACK_ENROLL_FAILED) retval = 1;
+			if (Error == ErrorCodes.NACK_BAD_FINGER) retval = 2;
+		}
+		if (ACK) return 0; else return retval;
+	}
+	
+	public int Enroll2() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Enroll2);
+		byte[] res = GetResponse(0);
+		
+		
+		int retval = IntFromParameter();
+		if (retval < 200) retval = 3; else retval = 0;
+		if (ACK == false)
+		{
+			if (Error == ErrorCodes.NACK_ENROLL_FAILED) retval = 1;
+			if (Error == ErrorCodes.NACK_BAD_FINGER) retval = 2;
+		}
+		if (ACK) return 0; else return retval;
+	}
+	
+	public int Enroll3() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Enroll3);
+		byte[] res = GetResponse(0);
+		
+		int retval = IntFromParameter();
+		if (retval < 200) retval = 3; else retval = 0;
+		if (ACK == false)
+		{
+			if (Error == ErrorCodes.NACK_ENROLL_FAILED) retval = 1;
+			if (Error == ErrorCodes.NACK_BAD_FINGER) retval = 2;
+		}
+		if (ACK) return 0; else return retval;
+	}
+	
+	public int Identify1_N() throws Exception
+	{
+		Parameter = new byte[]{0x00,0x00,0x00,0x00};
+		SendRequest(Commands.Identify1_N);
+		byte[] res = GetResponse(0);
+		
+		int retval = IntFromParameter();
+		if (retval > 200) retval = 200;
+		return retval;
+	}
+	
+	
+	
 	
 }
