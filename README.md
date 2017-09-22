@@ -13,7 +13,7 @@ Java Library to interface with the sensor using USB TO TTL Module. It works for 
 
 Example Program
 --------------
-FPS Serialconnector = new FPS();
+        FPS Serialconnector = new FPS();
     	BufferedReader br;
         try
         {
