@@ -23,7 +23,13 @@ Example Program
         	{
         		while(true)
         		{
-        			System.out.print("\n\nFingerPrint Example Program\n1.LED ON\n2.LED OFF\n3.Finger Pressed\n4.GetEnrollCount\n5.Enroll New Fingerprint\n6.Identity\n");
+        			System.out.print("\n\nFingerPrint Example Program\n\n");
+				System.out.print("\n1.LED ON");
+				System.out.print("\n2.LED OFF");
+				System.out.print("\n3.Finger Pressed");
+				System.out.print("\n4.GetEnrollCount");
+				System.out.print("\n5.Enroll New Fingerprint");
+				System.out.print("\n6.Identity\n");
         			System.out.print("Enter Input:");
         			
         			int input = Integer.parseInt(br.readLine());
