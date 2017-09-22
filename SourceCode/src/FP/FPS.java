@@ -149,12 +149,9 @@ public class FPS {
 	{
 		byte[] packetbytes= new byte[12];
 
-		// update command before calculating checksum (important!)
-		//short cmd = Command;
 		command[0] = GetLowByte(cmd);
 		command[1] = GetHighByte(cmd);
 
-		int checksum = _CalculateChecksum();
 		
 		packetbytes[0] = COMMAND_START_CODE_1;
 		packetbytes[1] = COMMAND_START_CODE_2;
@@ -167,11 +164,18 @@ public class FPS {
 		packetbytes[8] = command[0];
 		packetbytes[9] = command[1];
 		
+		int checksum = _CalculateChecksum();
 		packetbytes[10] = GetLowByte(checksum);
 		packetbytes[11] = GetHighByte(checksum);
+		
+		
+		// input byte debug code		
+		/*System.out.println("checksum:" + checksum);
+		System.out.println("GetLowByte:" + packetbytes[10]);		
+		System.out.println("GetHighByte:" + packetbytes[11]);
 
-		// input byte debug code
-		/*for(int i=0;i<12;i++)
+		System.out.print("Request:");
+		for(int i=0;i<12;i++)
 		{
 			byte[] test = new byte[1];
 			test[0] = packetbytes[i];
@@ -186,16 +190,16 @@ public class FPS {
 	int _CalculateChecksum()
 	{
 		int w = 0;
-		w += COMMAND_START_CODE_1;
-		w += COMMAND_START_CODE_2;
-		w += COMMAND_DEVICE_ID_1;
-		w += COMMAND_DEVICE_ID_2;
-		w += Parameter[0];
-		w += Parameter[1];
-		w += Parameter[2];
-		w += Parameter[3];
-		w += command[0];
-		w += command[1];
+		w += COMMAND_START_CODE_1&0xff;
+		w += COMMAND_START_CODE_2&0xff;
+		w += COMMAND_DEVICE_ID_1&0xff;
+		w += COMMAND_DEVICE_ID_2&0xff;
+		w += Parameter[0]&0xff;
+		w += Parameter[1]&0xff;
+		w += Parameter[2]&0xff;
+		w += Parameter[3]&0xff;
+		w += command[0]&0xff;
+		w += command[1]&0xff;
 
 		return w;
 	}
@@ -203,12 +207,16 @@ public class FPS {
 	
 	byte GetHighByte(int w)
 	{
-		return (byte) ((byte)(w>>16)&0x00FF);
+		//System.out.println("High Input:" +w);
+		//System.out.println("High Ouput:" + (byte) ((byte)(w>>8)&0x00FF));
+		return (byte) ((byte)(w>>8)&0x00FF);
 	}
 
 	// Returns the low byte from a word
 	byte GetLowByte(int w)
 	{
+		//System.out.println("Low Input:" + w);
+		//System.out.println("Low Ouput:" + (byte) ((byte)w&0x00FF));
 		return (byte) ((byte)w&0x00FF);
 	}
 	
@@ -241,7 +249,7 @@ public class FPS {
 		else 
 			ACK = false;
 
-		short checksum = CalculateChecksum(buffer, 10);
+		int checksum = CalculateChecksum(buffer, 10);
 		byte checksum_low = GetLowByte(checksum);
 		byte checksum_high = GetHighByte(checksum);
 
@@ -267,9 +275,6 @@ public class FPS {
 		{
 			
 		}
-		// grw 01/03/15 - replaced if clause with else clause for any non-zero high byte
-		// if (high == 0x01)
-		// {
 		else {
 			switch(low)
 			{
@@ -299,12 +304,12 @@ public class FPS {
 	
 	
 	
-	byte CalculateChecksum(byte[] buffer, int length)
+	int CalculateChecksum(byte[] buffer, int length)
 	{
-		byte checksum = 0;
+		int checksum = 0;
 		for (int i=0; i<length; i++)
 		{
-			checksum +=buffer[i];
+			checksum +=buffer[i]&0xff;
 		}
 		return checksum;
 	}
@@ -440,7 +445,6 @@ public class FPS {
 	
 	Boolean CheckEnrolled(int id) throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.CheckEnrolled);
 		ParameterFromInt(id);
 		byte[] res = GetResponse(0);
@@ -452,7 +456,6 @@ public class FPS {
 	
 	public int EnrollStart(int id) throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		ParameterFromInt(id);
 		SendRequest(Commands.EnrollStart);
 		byte[] res = GetResponse(0);
@@ -468,7 +471,6 @@ public class FPS {
 	
 	Boolean CaptureFinger(Boolean highquality) throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		if (highquality)
 			ParameterFromInt(1);
 		else
@@ -484,7 +486,6 @@ public class FPS {
 	
 	public int Enroll1() throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.Enroll1);
 		byte[] res = GetResponse(0);
 		
@@ -500,7 +501,6 @@ public class FPS {
 	
 	public int Enroll2() throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.Enroll2);
 		byte[] res = GetResponse(0);
 		
@@ -517,7 +517,6 @@ public class FPS {
 	
 	public int Enroll3() throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.Enroll3);
 		byte[] res = GetResponse(0);
 		
@@ -533,7 +532,6 @@ public class FPS {
 	
 	public int Identify1_N() throws Exception
 	{
-		Parameter = new byte[]{0x00,0x00,0x00,0x00};
 		SendRequest(Commands.Identify1_N);
 		byte[] res = GetResponse(0);
 		
@@ -542,7 +540,79 @@ public class FPS {
 		return retval;
 	}
 	
+	//Custom Methods
 	
-	
+	public Boolean NewEnrollment(int enrollid) throws Exception
+	{
+		LEDON();
+		
+		Boolean usedid = true;
+		while (usedid == true)
+		{
+			usedid = CheckEnrolled(enrollid);
+			if (usedid==true)
+			{
+				enrollid++;
+				System.out.println("Request Enroll ID# was already enrolled. So Assigning New Enroll Id #" + enrollid);
+			}
+		}
+		EnrollStart(enrollid);
+
+		// enroll
+		System.out.print("Press finger to Enroll #");
+		System.out.println(enrollid);
+		while(IsPressFinger() == false) Thread.sleep(100);
+		Boolean bret = CaptureFinger(true);
+		int iret = 0;
+		if (bret != false)
+		{
+			System.out.println("Remove finger");
+			Enroll1(); 
+			while(IsPressFinger() == true) Thread.sleep(100);
+			System.out.println("Press same finger again");
+			while(IsPressFinger() == false) Thread.sleep(100);
+			bret = CaptureFinger(true);
+			if (bret != false)
+			{
+				System.out.println("Remove finger");
+				Enroll2();
+				while(IsPressFinger() == true) Thread.sleep(10);
+				System.out.println("Press same finger yet again");
+				while(IsPressFinger() == false) Thread.sleep(10);
+				bret = CaptureFinger(true);
+				if (bret != false)
+				{
+					System.out.println("Remove finger");
+					iret = Enroll3();
+					if (iret == 0)
+					{
+						System.out.println("Enrolling Successfull for ID #"+enrollid);
+						return true;
+					}
+					else
+					{
+						System.out.println("Enrolling Failed with error code:");
+						System.out.println(iret);
+						return false;
+					}
+				}
+				else 
+				{
+					System.out.println("Failed to capture third finger");
+					return false;
+				}
+			}
+			else 
+				{
+					System.out.println("Failed to capture second finger");
+					return false;
+				}
+		}
+		else 
+			{
+				System.out.println("Failed to capture first finger");
+				return false; 
+			}
+	}
 	
 }
