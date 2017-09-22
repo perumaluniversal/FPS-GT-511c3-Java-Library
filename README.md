@@ -19,7 +19,7 @@ Example Program
         {
         	br = new BufferedReader(new InputStreamReader(System.in));
         	 
-        	if(Serialconnector.open("COM7"))
+        	if(Serialconnector.open("COM7")) // Change appropriate COM PORT here(USB TO TTL).
         	{
         		while(true)
         		{
